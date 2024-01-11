@@ -1,0 +1,5 @@
+Simple perl script to extract paths from an inkscape SVG and create
+an OpenScad file with a polygon points path suited for polygon().
+Each path in the SVG results in a separate open scad file with a single
+array of points.
+
