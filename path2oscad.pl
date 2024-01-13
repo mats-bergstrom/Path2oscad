@@ -47,83 +47,119 @@ print "OK\n";
 sub doPath {
     ($L,$s) = @_;
 
-    $is_abs = 0;
     my @X = ();
     my @Y = ();
     my $n = 0;
 
     my $px = 0;			# Previous x and y
     my $py = 0;
+    my $x = 0;			# Current x and y.
+    my $y = 0;
+
+    my $bad = 1;
+    my $at_end = 0;
+    my $mode = '-';
     
     print "LBL : $L\n";
     print "PTH : $s\n";
 
-    
-    $c = substr($s,0,1);
-    $s = substr($s,1);
-    
-    if ( $c eq 'm' ) {
-	$is_abs = 0;
-    }
-    elsif ( $c eq 'M' ) {
-	$is_abs = 1;
-    }
-    else {
-	printf("Path not linesegments.  Ignored.\n");
-	return;
-    }
+    while ( length($s) > 0 ) {
 
-    B: while ( length($s) > 0 ) {
-	my $dx = 0;
-	my $dy = 0;
-	my $bad = 0;
-	my $at_end = 0;
+	# Regex for floating point numbers
+	my $flt = '[+-]?\d*\.?\d+([eE][-+]?\d+)?'; 
 
-#	print "AT: \"$s\"\n";
-	A: while ( !$at_end ) {
-	    # h 123.456
-	    $s =~ s/^\s*[hH]\s+([+-]?\d*\.?\d+)\s+// && do {
-		$dx = $1;
-		$dy = 0;
-		last A;
-	    };
-
-	    # v 123.456
-	    $s =~ s/^\s*[vV]\s+([+-]?\d*\.?\d+)\s+// && do {
-		$dy = $1;
-		$dx = 0;
-		last A;
-	    };
-
-	    # [lL]? 123.456,321.654
-	    $s =~ s/^\s*([lL]\s+)?([+-]?\d*\.?\d+),([+-]?\d*\.?\d+)\s+// && do {
-		$dx = $2;
-		$dy = $3;
-		last A;
-	    };
-
-	    $s =~ s/^\s*[zZ]// && do {
+	
+	# First catch mode
+	$s =~ s/^\s*([mMhHvVlLzZ])\s*// && do {
+	    $mode = $1;
+	    $mode = 'l' if ( $mode eq 'm' );
+	    $mode = 'L' if ( $mode eq 'M' );
+	    if ( $mode eq 'z' || $mode eq 'Z' ) {
 		$at_end = 1;
-		last A;
-	    };
-	    
-	    printf "Not recognised: \"$s\"\n";
-	    return;
-	};
-
-#	print "\t($dx,$dy)\n";
-
-	if ( !$at_end ) {
-	    my $x = $dx + $px;
-	    my $y = $dy + $py;
-	    if ( !$is_abs ) {
-		$px = $x;
-		$py = $y;
 	    }
-	    push @X,$x;
-	    push @Y,$y;
-	    ++$n;
+	};
+	# if not a new mode we keep the current and parse coordinates.
+
+#	print "mode=\"$mode\" : $s\n";
+
+	  
+	# l : Relative lineto x,y
+	if ( $mode eq 'l' ) {
+	    $s =~ s/\s*(?<X>$flt),(?<Y>$flt)//  && do {
+		$x = $+{X} + $px;
+		$y = $+{Y} + $py;
+		$bad = 0;
+	    }
 	}
+
+	# L: Absolute lineto x,y
+	elsif ( $mode eq 'L' ) {
+	    $s =~ s/\s*(?<X>$flt),(?<Y>$flt)//  && do {
+		$x = $+{X};
+		$y = $+{Y};
+		$bad = 0;
+	    }
+	}
+
+	# h: Relative horizontal x
+	elsif ( $mode eq 'h' ) {
+	    $s =~ s/\s*(?<X>$flt)//  && do {
+		$x = $+{X} + $px;
+		$y = $py;
+		$bad = 0;
+	    }
+	}
+
+	# H: Absolute horizontal x
+	elsif ( $mode eq 'H' ) {
+	    $s =~ s/\s*(?<X>$flt)//  && do {
+		$x = $+{X};
+		$y = $py;
+		$bad = 0;
+	    }
+	}
+
+	# v: Relative vertical x
+	elsif ( $mode eq 'v' ) {
+	    $s =~ s/\s*(?<Y>$flt)//  && do {
+		$y = $+{Y} + $py;
+		$x = $px;
+		$bad = 0;
+	    }
+	}
+
+	# V: Absolute vertical x
+	elsif ( $mode eq 'V' ) {
+	    $s =~ s/\s*(?<Y>$flt)//  && do {
+		$y = $+{Y};
+		$x = $px;
+		$bad = 0;
+	    }
+	}
+	
+	# zZ : end.
+	elsif ( $mode eq 'z' || $mode eq 'Z' ) {
+	    last;
+	}
+
+	# No mode...
+	else {
+	    print "Unrecognised mode. : \"$s\"\n";
+	    last;
+	}
+
+	last if ( $bad );
+
+	
+	$px = $x;
+	$py = $y;
+
+#	print "\t($x,$y)\n";
+
+	push @X,$x;
+	push @Y,$y;
+	++$n;
+
     }
 
     if ($n) {
