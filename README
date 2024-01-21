@@ -3,3 +3,25 @@ an OpenScad file with a polygon points path suited for polygon().
 Each path in the SVG results in a separate open scad file with a single
 array of points.
 
+It's a Quick and Dirty Hack, works for now.  I'll parse the svg properly
+with an xml parser when I have time...
+
+HOWTO:
+	Draw a path in inkscape
+	Make sure all segments are lines by "Edit Path by Nodes" (F2),
+	select all nodes (C-a) and press "Make selected segments lines".
+	Label the object (Menu "Object"->Object), edit label from pathNNNN to
+	what you find suitable.
+	Save.
+
+	path2scad.pl input-file.svg
+
+	The output file will create 4 scalars (X/Y min/max) and an array of
+	points with the path.  These are named
+	       path_<label>_xmin, path_<label>_xmax,	for x min/max
+	       path_<label>_ymin, path_<label>_ymax,	for y min/max
+	       path_<label>	  			for the point array.
+
+	In the scad file:
+		include <input-file.svg.scad>
+		polygon( path<label> );

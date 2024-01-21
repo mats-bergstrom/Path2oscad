@@ -1,13 +1,23 @@
 #! /usr/bin/perl -w
 
+
+# Digs out a path in an SVG and translates that to an OpenScad point array.
+
 $fnam = shift;
 
 die "No file name\n" if ( !$fnam );
 
-$in_path = 0;
-$d = '';
-$lbl = '';
+$snam = "$fnam.scad";
+    
+$in_path = 0;			# 0/1		inside <path /> or not.
+$d = '';			# string	d= value, i.e. path data
+$lbl = '';			# string	inkscape:label of the path
+
 open(F,'<',$fnam) or die "Failed to open file: $fnam\n";
+open(S,'>',$snam) or die "Failed to open output file: $snam\n";
+
+print S "// Generated file from $fnam\n\n";
+
 while(<F>) {
     chomp;
     
@@ -40,7 +50,8 @@ while(<F>) {
 
 }
 close(F);
-print "OK\n";
+close(S);
+print "Done\n";
 
 
 
@@ -63,6 +74,8 @@ sub doPath {
     print "LBL : $L\n";
     print "PTH : $s\n";
 
+    print S "// label = $L\n";
+    
     while ( length($s) > 0 ) {
 
 	# Regex for floating point numbers
@@ -164,14 +177,29 @@ sub doPath {
 
     if ($n) {
 	my $i;
-	open(P,">","path_$L.scad") or die "Unable to create file\n";
-	print P "// Generated file\n\n";
-	print P "path_$L = \[\n";
+	my $name = "path_$L";
+	my $min_X = $X[0];
+	my $max_X = $X[0];
+	my $min_Y = $Y[0];
+	my $max_Y = $Y[0];
+
 	for ( $i = 0; $i < $n; ++$i ) {
-	    print P "\t\t\[$X[$i],$Y[$i]\],\n"
+	    $min_X = $X[$i] if ( $X[$i] < $min_X );
+	    $max_X = $X[$i] if ( $X[$i] > $max_X );
+	    $min_Y = $Y[$i] if ( $Y[$i] < $min_Y );
+	    $max_Y = $Y[$i] if ( $Y[$i] > $max_Y );
 	}
-	print P "\t\];\n\n";
-	close(P);
+	print S "\n// $L\n";
+	print S "$name" . "_xmin = $min_X;\n";
+	print S "$name" . "_xmax = $max_X;\n";
+	print S "$name" . "_ymin = $min_Y;\n";
+	print S "$name" . "_ymax = $max_Y;\n";
+	print S "$name = \[\n";
+	for ( $i = 0; $i < $n; ++$i ) {
+	    print S "\t\t\[$X[$i],$Y[$i]\],\n"
+	}
+	print S "\t\];\n\n";
+
     }
     
     print "\n";
